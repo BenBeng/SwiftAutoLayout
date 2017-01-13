@@ -24,23 +24,39 @@ extension EdgeInsets {
     #endif
 }
 
-extension NSLayoutConstraint {
-    public class func activate(_ constraints: [Any]) {
-        for item in constraints {
-            if let layoutContraint = item as? NSLayoutConstraint {
-                layoutContraint.isActive = true
-            }else if let layoutConstraints = item as? [NSLayoutConstraint] {
-                NSLayoutConstraint.activate(layoutConstraints)
-            }
-        }
-    }
-}
-
 public protocol LayoutRegion: AnyObject {}
 extension View: LayoutRegion {}
 
 @available(iOS 9.0, OSX 10.11, *)
 extension LayoutGuide: LayoutRegion {}
+
+public protocol LayoutConstraintActivatable {
+    func activate()
+}
+
+public struct LayoutConstraintArray: LayoutConstraintActivatable {
+    let layoutConstaints: [NSLayoutConstraint]
+    
+    public func activate() {
+        NSLayoutConstraint.activate(layoutConstaints)
+    }
+    
+    init(_ layoutContraints: [NSLayoutConstraint]) {
+        self.layoutConstaints = layoutContraints
+    }
+}
+
+extension NSLayoutConstraint: LayoutConstraintActivatable {
+    public func activate() {
+        self.isActive = true
+    }
+}
+
+extension NSLayoutConstraint {
+    public class func activate(_ constraints: [LayoutConstraintActivatable]) {
+        constraints.forEach { $0.activate() }
+    }
+}
 
 public struct XAxis {}
 public struct YAxis {}
@@ -119,45 +135,44 @@ public func <=(lhs: LayoutItem<Dimension>, rhs: CGFloat) -> NSLayoutConstraint {
 }
 
 infix operator <|: AdditionPrecedence
-public func <|(lhs: View, rhs: EdgeInsets) -> [NSLayoutConstraint] {
-    return [
+public func <|(lhs: View, rhs: EdgeInsets) -> LayoutConstraintArray {
+    return LayoutConstraintArray([
         lhs.top == lhs.superview!.top + rhs.top,
         lhs.bottom == lhs.superview!.bottom - rhs.bottom,
         lhs.leading == lhs.superview!.leading + rhs.left,
         lhs.trailing == lhs.superview!.trailing - rhs.right
-    ]
+    ])
 }
 
 infix operator <||: AdditionPrecedence
-public func <||(lhs: View, rhs: EdgeInsets) -> [NSLayoutConstraint] {
-    return [
+public func <||(lhs: View, rhs: EdgeInsets) -> LayoutConstraintArray {
+    return LayoutConstraintArray([
         lhs.topMargin == lhs.superview!.topMargin + rhs.top,
         lhs.bottomMargin == lhs.superview!.bottomMargin - rhs.bottom,
         lhs.leadingMargin == lhs.superview!.leadingMargin + rhs.left,
         lhs.trailingMargin == lhs.superview!.trailingMargin - rhs.right
-    ]
+    ])
 }
 
 postfix operator <|
-public postfix func <|(lhs: View) -> [NSLayoutConstraint] {
+public postfix func <|(lhs: View) -> LayoutConstraintArray {
     return lhs <| EdgeInsets.zero
 }
 
 postfix operator <||
-public postfix func <||(lhs: View) -> [NSLayoutConstraint] {
+public postfix func <||(lhs: View) -> LayoutConstraintArray {
     return lhs <|| EdgeInsets.zero
 }
 
-public func -<C>(lhs: [NSLayoutConstraint], rhs: LayoutItem<C>) -> [NSLayoutConstraint] {
-    var layouts = lhs
-    for (index, layout) in lhs.enumerated() {
+public func -<C>(lhs: LayoutConstraintArray, rhs: LayoutItem<C>) -> LayoutConstraintArray {
+    var layouts = lhs.layoutConstaints
+    for (index, layout) in lhs.layoutConstaints.enumerated() {
         if layout.firstAttribute == rhs.attribute {
             layouts.remove(at: index)
             break
         }
     }
-    
-    return layouts
+    return LayoutConstraintArray(layouts)
 }
 
 fileprivate func layoutItem<C>(_ item: AnyObject, _ attribute: NSLayoutAttribute) -> LayoutItem<C> {
