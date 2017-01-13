@@ -12,10 +12,29 @@
     import UIKit
     public typealias View = UIView
     public typealias LayoutPriority = UILayoutPriority
+    public typealias EdgeInsets = UIEdgeInsets
 
     @available(iOS 9.0, *)
     public typealias LayoutGuide = UILayoutGuide
 #endif
+
+extension EdgeInsets {
+    #if os(OSX)
+    public static let zero = EdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+    #endif
+}
+
+extension NSLayoutConstraint {
+    public class func activate(_ constraints: [Any]) {
+        for item in constraints {
+            if let layoutContraint = item as? NSLayoutConstraint {
+                layoutContraint.isActive = true
+            }else if let layoutConstraints = item as? [NSLayoutConstraint] {
+                NSLayoutConstraint.activate(layoutConstraints)
+            }
+        }
+    }
+}
 
 public protocol LayoutRegion: AnyObject {}
 extension View: LayoutRegion {}
@@ -97,6 +116,48 @@ public func <=<C>(lhs: LayoutItem<C>, rhs: LayoutItem<C>) -> NSLayoutConstraint 
 
 public func <=(lhs: LayoutItem<Dimension>, rhs: CGFloat) -> NSLayoutConstraint {
     return lhs.constrain(rhs, relation: .lessThanOrEqual)
+}
+
+infix operator <|: AdditionPrecedence
+public func <|(lhs: View, rhs: EdgeInsets) -> [NSLayoutConstraint] {
+    return [
+        lhs.top == lhs.superview!.top + rhs.top,
+        lhs.bottom == lhs.superview!.bottom - rhs.bottom,
+        lhs.leading == lhs.superview!.leading + rhs.left,
+        lhs.trailing == lhs.superview!.trailing - rhs.right
+    ]
+}
+
+infix operator <||: AdditionPrecedence
+public func <||(lhs: View, rhs: EdgeInsets) -> [NSLayoutConstraint] {
+    return [
+        lhs.topMargin == lhs.superview!.topMargin + rhs.top,
+        lhs.bottomMargin == lhs.superview!.bottomMargin - rhs.bottom,
+        lhs.leadingMargin == lhs.superview!.leadingMargin + rhs.left,
+        lhs.trailingMargin == lhs.superview!.trailingMargin - rhs.right
+    ]
+}
+
+postfix operator <|
+public postfix func <|(lhs: View) -> [NSLayoutConstraint] {
+    return lhs <| EdgeInsets.zero
+}
+
+postfix operator <||
+public postfix func <||(lhs: View) -> [NSLayoutConstraint] {
+    return lhs <|| EdgeInsets.zero
+}
+
+public func -<C>(lhs: [NSLayoutConstraint], rhs: LayoutItem<C>) -> [NSLayoutConstraint] {
+    var layouts = lhs
+    for (index, layout) in lhs.enumerated() {
+        if layout.firstAttribute == rhs.attribute {
+            layouts.remove(at: index)
+            break
+        }
+    }
+    
+    return layouts
 }
 
 fileprivate func layoutItem<C>(_ item: AnyObject, _ attribute: NSLayoutAttribute) -> LayoutItem<C> {
