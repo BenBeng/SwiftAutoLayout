@@ -164,10 +164,10 @@ public postfix func <||(lhs: View) -> LayoutConstraintArray {
     return lhs <|| EdgeInsets.zero
 }
 
-public func -<C>(lhs: LayoutConstraintArray, rhs: LayoutItem<C>) -> LayoutConstraintArray {
+public func -(lhs: LayoutConstraintArray, rhs: NSLayoutAttribute) -> LayoutConstraintArray {
     var layouts = lhs.layoutConstaints
     for (index, layout) in lhs.layoutConstaints.enumerated() {
-        if layout.firstAttribute == rhs.attribute {
+        if layout.firstAttribute == rhs {
             layouts.remove(at: index)
             break
         }
